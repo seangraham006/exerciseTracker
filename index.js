@@ -36,7 +36,6 @@ const ExercisesSchema = new mongoose.Schema({
 const User = mongoose.model('User',UsersSchema);
 const Exercise = mongoose.model('Exercise',ExercisesSchema);
 
-// enter username into db
 const createAndSaveUser = async (username) => {
   const user = new User({ username: username });
 
@@ -44,6 +43,16 @@ const createAndSaveUser = async (username) => {
     const savedUser = await user.save();
     console.log("user saved!!")
     return savedUser; 
+  } catch (err) {
+    console.log(err);
+    throw err;
+  }
+};
+
+const returnAllUsers = async () => {
+  try {
+    const users = await User.find({});
+    return users;
   } catch (err) {
     console.log(err);
     throw err;
@@ -63,6 +72,17 @@ app.post("/api/users", async (req,res) => {
     const savedUser = await createAndSaveUser(username);
     console.log(savedUser);
     res.json({ "username": savedUser.username, "_id": savedUser._id })
+  } catch (err) {
+    res.status(500).json({ error: 'Database error' })
+  }
+});
+
+app.get("/api/users", async (req,res) => {
+  try {
+    const users = await returnAllUsers();
+    console.log("attempted return of all users");
+    console.log(users);
+    res.json(users);
   } catch (err) {
     res.status(500).json({ error: 'Database error' })
   }
