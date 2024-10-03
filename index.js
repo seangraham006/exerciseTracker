@@ -61,6 +61,8 @@ app.post("/api/users", async (req,res) => {
   try {
     console.log("valid");
     const savedUser = await createAndSaveUser(username);
+    console.log(savedUser);
+    res.json({ "username": savedUser.username, "_id": savedUser._id })
   } catch (err) {
     res.status(500).json({ error: 'Database error' })
   }
