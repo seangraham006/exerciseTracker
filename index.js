@@ -2,6 +2,7 @@ const express = require('express');
 const app = express();
 const cors = require('cors');
 const mongoose = require('mongoose');
+const res = require('express/lib/response');
 require('dotenv').config();
 let nanoid;
 (async () => {
@@ -30,7 +31,7 @@ const ExercisesSchema = new mongoose.Schema({
   user_id: {type: String, required: true},
   description: {type: String, required: true},
   duration: {type: Number, required: true},
-  date: {type: Date, required: false}
+  date: {type: String, required: false}
 });
 
 const User = mongoose.model('User',UsersSchema);
@@ -41,13 +42,27 @@ const createAndSaveUser = async (username) => {
 
   try {
     const savedUser = await user.save();
-    console.log("user saved!!")
     return savedUser; 
   } catch (err) {
     console.log(err);
     throw err;
   }
 };
+
+const createAndSaveExercise = async (id,description,duration,date) => {
+  console.log("createAndSaveExercise");
+  const exercise = new Exercise({ user_id: id, description: description, duration: duration, date: date });
+  console.log(date);
+  try {
+    const savedExercise = await exercise.save();
+    console.log("saved exercise: ",savedExercise);
+    return savedExercise; 
+  } catch (err) {
+    console.log("error in createAndSaveExercise");
+    console.log(err);
+    throw err;
+  }
+}
 
 const returnAllUsers = async () => {
   try {
@@ -56,6 +71,35 @@ const returnAllUsers = async () => {
   } catch (err) {
     console.log(err);
     throw err;
+  }
+};
+
+const findUserById = async (id) => {
+  console.log("findUserById: ",id);
+  try {
+    const user = await User.findOne({_id: id});
+    return user;
+  } catch (err) {
+    console.log(err);
+    throw err;
+  }
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////
+
+const isValidDateFormat = (dateString) => {
+  console.log("isValidDateFormat:",dateString);
+  if (!dateString) {
+    return new Date().toISOString().slice(0, 10);
+  }
+  dateString = dateString.trim();
+  const regex = /^\d{4}-\d{2}-\d{2}$/;
+  if (dateString === '') {
+    return new Date().toISOString().slice(0, 10);
+  } else if (!regex.test(dateString)) {
+    return '';
+  } else {
+    return dateString;
   }
 };
 
@@ -68,11 +112,50 @@ app.post("/api/users", async (req,res) => {
     return
   }
   try {
-    console.log("valid");
     const savedUser = await createAndSaveUser(username);
-    console.log(savedUser);
     res.json({ "username": savedUser.username, "_id": savedUser._id })
   } catch (err) {
+    res.status(500).json({ error: 'Database error' })
+  }
+});
+
+app.post('/api/users/:_id/exercises', async (req,res) => {
+  let invalid = [];
+  const { _id: id } = req.params;
+  const { description, duration } = req.body;
+  let { date } = req.body;
+  //is id real
+  try {
+    const userDetails = await findUserById(id);
+    if (!userDetails) {
+      invalid.push("invalid user id");
+    }
+  } catch (err) {
+    res.status(500).json({ error: 'Database error' })
+  };
+  //is description there
+  if (description.trim() === '') {
+    invalid.push("invalid description")
+  }
+  //is duration there and formatted correctly
+  if (isNaN(duration)) {
+    invalid.push("duration must be an integer")
+  }
+  //is date there and if not get date
+  date = isValidDateFormat(date);
+  if (date === '') {
+    invalid.push("invalid date entry")
+  }
+  if (invalid.length > 0) {
+    res.json({ "errors": invalid })
+    return
+  }
+  try {
+    console.log(id,description,duration,date);
+    const savedExercise = await createAndSaveExercise(id,description,duration,date);
+    res.json({ "username": userDetails.username, "description": description, "duration": duration, "date": date, "_id": user_id });
+  } catch (err) {
+    console.log("here");
     res.status(500).json({ error: 'Database error' })
   }
 });
@@ -80,8 +163,6 @@ app.post("/api/users", async (req,res) => {
 app.get("/api/users", async (req,res) => {
   try {
     const users = await returnAllUsers();
-    console.log("attempted return of all users");
-    console.log(users);
     res.json(users);
   } catch (err) {
     res.status(500).json({ error: 'Database error' })
