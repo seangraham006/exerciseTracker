@@ -103,6 +103,11 @@ const isValidDateFormat = (dateString) => {
   }
 };
 
+const convertToReadableDate = (isoDateString) => {
+  const date = new Date(isoDateString);
+  return date.toDateString();
+}
+
 //////////////////////////////////////////////////////////////////////////////////////////
 
 app.post("/api/users", async (req,res) => {
@@ -128,34 +133,28 @@ app.post('/api/users/:_id/exercises', async (req,res) => {
   try {
     const userDetails = await findUserById(id);
     if (!userDetails) {
-      invalid.push("invalid user id");
-    }
-  } catch (err) {
-    res.status(500).json({ error: 'Database error' })
-  };
-  //is description there
-  if (description.trim() === '') {
-    invalid.push("invalid description")
-  }
-  //is duration there and formatted correctly
-  if (isNaN(duration)) {
-    invalid.push("duration must be an integer")
-  }
-  //is date there and if not get date
-  date = isValidDateFormat(date);
-  if (date === '') {
-    invalid.push("invalid date entry")
-  }
-  if (invalid.length > 0) {
-    res.json({ "errors": invalid })
-    return
-  }
-  try {
-    console.log(id,description,duration,date);
+      return res.status(400).json({ error: "invalid user id" });
+    };
+
+    if (!description || description.trim() === '') {
+      return res.status(400).json({ error: "invalid description" });
+    };
+
+    const durationNumber = Number(duration);
+    if (isNaN(durationNumber) || durationNumber <= 0) {
+      return res.status(400).json({ error: "duration must be a positive integer" });
+    };
+
+    const validDate = isValidDateFormat(date);
+    if (validDate === '') {
+      return res.status(400).json({ error: "invalid date entry" });
+    };
+    const readableDate = convertToReadableDate(validDate);
+  
     const savedExercise = await createAndSaveExercise(id,description,duration,date);
-    res.json({ "username": userDetails.username, "description": description, "duration": duration, "date": date, "_id": user_id });
+    res.json({ "username": userDetails.username, "description": description, "duration": durationNumber, "date": readableDate, "_id": userDetails._id });
   } catch (err) {
-    console.log("here");
+    console.log(err);
     res.status(500).json({ error: 'Database error' })
   }
 });
