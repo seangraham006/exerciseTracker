@@ -190,13 +190,33 @@ app.get("/api/users", async (req,res) => {
 
 app.get('/api/users/:_id/logs', async (req,res) => {
   const { _id: id } = req.params;
+  const { from, to, limit } = req.query;
+  console.log(from,to,limit);
+
   try {
     const userDetails = await findUserById(id);
     if (!userDetails) {
       return res.status(400).json({ error: "invalid user id" });
     };
 
-    const exercises = await findExercisesByUserId(id);
+    let exercises = await findExercisesByUserId(id);
+
+    // If 'from' or 'to' are provided, filter by date range
+    if (from || to) {
+      const fromDate = new Date(from);
+      const toDate = new Date(to);
+      exercises = exercises.filter(exercise => {
+        const exerciseDate = new Date(exercise.date);
+        return (!isNaN(fromDate) ? exerciseDate >= fromDate : true) &&
+               (!isNaN(toDate) ? exerciseDate <= toDate : true);
+      });
+    }
+
+    // If 'limit' is provided, slice the results
+    if (limit) {
+      exercises = exercises.slice(0, parseInt(limit));
+    }
+
     const count = exercises.length;
     const desiredFields = ['description','duration','date'];
 
