@@ -85,6 +85,17 @@ const findUserById = async (id) => {
   }
 }
 
+const findExercisesByUserId = async (id) => {
+  console.log("findExercisesByUser:",id);
+  try {
+    const exercises = await Exercise.find({user_id: id});
+    return exercises
+  } catch (err) {
+    console.log(err);
+    throw err;
+  }
+}
+
 //////////////////////////////////////////////////////////////////////////////////////////
 
 const isValidDateFormat = (dateString) => {
@@ -106,7 +117,17 @@ const isValidDateFormat = (dateString) => {
 const convertToReadableDate = (isoDateString) => {
   const date = new Date(isoDateString);
   return date.toDateString();
-}
+};
+
+const extractKeys = (array, keys) => {
+  return array.map(item => {
+    let extracted = {};
+    keys.forEach(key => {
+      extracted[key] = item[key]
+    });
+    return extracted;
+  });
+};
 
 //////////////////////////////////////////////////////////////////////////////////////////
 
@@ -125,7 +146,6 @@ app.post("/api/users", async (req,res) => {
 });
 
 app.post('/api/users/:_id/exercises', async (req,res) => {
-  let invalid = [];
   const { _id: id } = req.params;
   const { description, duration } = req.body;
   let { date } = req.body;
@@ -151,7 +171,7 @@ app.post('/api/users/:_id/exercises', async (req,res) => {
     };
     const readableDate = convertToReadableDate(validDate);
   
-    const savedExercise = await createAndSaveExercise(id,description,duration,date);
+    const savedExercise = await createAndSaveExercise(id,description,durationNumber,readableDate);
     res.json({ "username": userDetails.username, "description": description, "duration": durationNumber, "date": readableDate, "_id": userDetails._id });
   } catch (err) {
     console.log(err);
@@ -164,6 +184,29 @@ app.get("/api/users", async (req,res) => {
     const users = await returnAllUsers();
     res.json(users);
   } catch (err) {
+    res.status(500).json({ error: 'Database error' })
+  }
+});
+
+app.get('/api/users/:_id/logs', async (req,res) => {
+  const { _id: id } = req.params;
+  try {
+    const userDetails = await findUserById(id);
+    if (!userDetails) {
+      return res.status(400).json({ error: "invalid user id" });
+    };
+
+    const exercises = await findExercisesByUserId(id);
+    const count = exercises.length;
+    const desiredFields = ['description','duration','date'];
+
+    const coreExerciseValues = extractKeys(exercises,desiredFields);
+    console.log(coreExerciseValues);
+
+    res.json({ "username": userDetails.username, "count": count, "_id": userDetails._id, "log": coreExerciseValues });
+    console.log("res shown")
+  } catch (err) {
+    console.log(err);
     res.status(500).json({ error: 'Database error' })
   }
 });
